@@ -1,0 +1,17 @@
+{
+  "name": "ShadowPlay",
+  "short_name": "ShadowPlay",
+  "description": "A beautiful video streaming experience",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f0f0f",
+  "theme_color": "#ff0000",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "64x64",
+      "type": "image/x-icon"
+    }
+  ]
+}
