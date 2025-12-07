@@ -1,58 +1,28 @@
 import { MainLayout } from '@/components/layout/MainLayout';
 import { VideoCard } from '@/components/video/VideoCard';
-
-const mockShorts = [
-  {
-    id: 's1',
-    title: 'Mind-blowing magic trick revealed! 🎩✨',
-    channelName: 'Magic Master',
-    thumbnailUrl: 'https://images.unsplash.com/photo-1503676260728-1c00da094a0b?w=360&h=640&fit=crop',
-    viewCount: '5.2M',
-    publishedAt: '2024-12-05T10:00:00Z',
-  },
-  {
-    id: 's2',
-    title: 'This cat is absolutely hilarious 😂🐱',
-    channelName: 'Pet Comedy',
-    thumbnailUrl: 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=360&h=640&fit=crop',
-    viewCount: '12M',
-    publishedAt: '2024-12-04T14:30:00Z',
-  },
-  {
-    id: 's3',
-    title: '3 cooking hacks that will change your life',
-    channelName: 'Quick Recipes',
-    thumbnailUrl: 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=360&h=640&fit=crop',
-    viewCount: '890K',
-    publishedAt: '2024-12-03T08:00:00Z',
-  },
-  {
-    id: 's4',
-    title: 'The most satisfying video ever 🌊',
-    channelName: 'Satisfying Things',
-    thumbnailUrl: 'https://images.unsplash.com/photo-1505118380757-91f5f5632de0?w=360&h=640&fit=crop',
-    viewCount: '8.4M',
-    publishedAt: '2024-12-02T16:45:00Z',
-  },
-  {
-    id: 's5',
-    title: 'Wait for it... 😱 Unexpected ending!',
-    channelName: 'Plot Twist',
-    thumbnailUrl: 'https://images.unsplash.com/photo-1518791841217-8f162f1e1131?w=360&h=640&fit=crop',
-    viewCount: '3.1M',
-    publishedAt: '2024-12-01T12:00:00Z',
-  },
-  {
-    id: 's6',
-    title: 'Dance tutorial in 30 seconds 💃',
-    channelName: 'Dance Quick',
-    thumbnailUrl: 'https://images.unsplash.com/photo-1508700929628-666bc8bd84ea?w=360&h=640&fit=crop',
-    viewCount: '2.7M',
-    publishedAt: '2024-11-30T09:30:00Z',
-  },
-];
+import { useShorts } from '@/hooks/useYouTube';
+import { useEffect, useRef, useCallback } from 'react';
 
 export default function Shorts() {
+  const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } = useShorts();
+  const loadMoreRef = useRef<HTMLDivElement>(null);
+
+  const handleObserver = useCallback((entries: IntersectionObserverEntry[]) => {
+    const target = entries[0];
+    if (target.isIntersecting && hasNextPage && !isFetchingNextPage) {
+      fetchNextPage();
+    }
+  }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
+
+  useEffect(() => {
+    const option = { root: null, rootMargin: '100px', threshold: 0 };
+    const observer = new IntersectionObserver(handleObserver, option);
+    if (loadMoreRef.current) observer.observe(loadMoreRef.current);
+    return () => observer.disconnect();
+  }, [handleObserver]);
+
+  const allShorts = data?.pages.flatMap(page => page) ?? [];
+
   return (
     <MainLayout>
       <div className="px-4 py-4">
@@ -65,16 +35,30 @@ export default function Shorts() {
           <h1 className="text-xl font-semibold text-foreground">Shorts</h1>
         </div>
 
-        <div className="grid grid-cols-2 gap-2">
-          {mockShorts.map((short, index) => (
-            <div
-              key={short.id}
-              style={{ animationDelay: `${index * 50}ms` }}
-              className="animate-fade-in"
-            >
-              <VideoCard {...short} variant="shorts" />
-            </div>
-          ))}
+        {isLoading ? (
+          <div className="grid grid-cols-2 gap-2">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="aspect-[9/16] rounded-xl skeleton-shimmer" />
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-2">
+            {allShorts.map((short, index) => (
+              <div
+                key={`${short.id}-${index}`}
+                style={{ animationDelay: `${(index % 10) * 50}ms` }}
+                className="animate-fade-in"
+              >
+                <VideoCard {...short} variant="shorts" />
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div ref={loadMoreRef} className="h-10 flex items-center justify-center">
+          {isFetchingNextPage && (
+            <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+          )}
         </div>
       </div>
     </MainLayout>
