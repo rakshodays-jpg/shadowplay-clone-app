@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import Index from "./pages/Index";
 import Shorts from "./pages/Shorts";
+import WatchShort from "./pages/WatchShort";
 import Subscriptions from "./pages/Subscriptions";
 import Library from "./pages/Library";
 import Settings from "./pages/Settings";
@@ -26,7 +27,7 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/shorts" element={<Shorts />} />
-            <Route path="/shorts/:id" element={<Shorts />} />
+            <Route path="/shorts/:id" element={<WatchShort />} />
             <Route path="/subscriptions" element={<Subscriptions />} />
             <Route path="/library" element={<Library />} />
             <Route path="/settings" element={<Settings />} />
