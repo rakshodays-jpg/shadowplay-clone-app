@@ -45,118 +45,129 @@ function formatDuration(isoDuration: string): string {
 }
 
 export async function fetchTrendingVideos(regionCode: string = 'IN', maxResults: number = 20): Promise<YouTubeVideo[]> {
-  try {
-    const response = await fetch(
-      `${BASE_URL}/videos?part=snippet,contentDetails,statistics&chart=mostPopular&regionCode=${regionCode}&maxResults=${maxResults}&key=${YOUTUBE_API_KEY}`
-    );
-    
-    if (!response.ok) throw new Error('Failed to fetch trending videos');
-    
-    const data = await response.json();
-    
-    const channelIds = [...new Set(data.items.map((item: any) => item.snippet.channelId))];
-    const channelAvatars = await fetchChannelAvatars(channelIds as string[]);
-    
-    return data.items.map((item: any) => ({
-      id: item.id,
+  const response = await fetch(
+    `${BASE_URL}/videos?part=snippet,contentDetails,statistics&chart=mostPopular&regionCode=${regionCode}&maxResults=${maxResults}&key=${YOUTUBE_API_KEY}`
+  );
+  
+  if (!response.ok) {
+    const errorData = await response.json();
+    console.error('YouTube API Error:', errorData);
+    throw new Error(errorData.error?.message || 'Failed to fetch trending videos');
+  }
+  
+  const data = await response.json();
+  
+  if (!data.items || data.items.length === 0) {
+    return [];
+  }
+  
+  const channelIds = [...new Set(data.items.map((item: any) => item.snippet.channelId))];
+  const channelAvatars = await fetchChannelAvatars(channelIds as string[]);
+  
+  return data.items.map((item: any) => ({
+    id: item.id,
+    title: item.snippet.title,
+    channelName: item.snippet.channelTitle,
+    channelId: item.snippet.channelId,
+    channelAvatar: channelAvatars[item.snippet.channelId] || '',
+    thumbnailUrl: item.snippet.thumbnails.high?.url || item.snippet.thumbnails.medium?.url || item.snippet.thumbnails.default?.url,
+    viewCount: formatViewCount(item.statistics?.viewCount || '0'),
+    publishedAt: item.snippet.publishedAt,
+    duration: formatDuration(item.contentDetails?.duration || ''),
+    description: item.snippet.description,
+  }));
+}
+
+export async function searchVideos(query: string, maxResults: number = 20): Promise<YouTubeVideo[]> {
+  const response = await fetch(
+    `${BASE_URL}/search?part=snippet&q=${encodeURIComponent(query)}&type=video&maxResults=${maxResults}&key=${YOUTUBE_API_KEY}`
+  );
+  
+  if (!response.ok) {
+    const errorData = await response.json();
+    console.error('YouTube API Error:', errorData);
+    throw new Error(errorData.error?.message || 'Failed to search videos');
+  }
+  
+  const data = await response.json();
+  
+  if (!data.items || data.items.length === 0) {
+    return [];
+  }
+  
+  const videoIds = data.items.map((item: any) => item.id.videoId).join(',');
+  
+  const statsResponse = await fetch(
+    `${BASE_URL}/videos?part=contentDetails,statistics&id=${videoIds}&key=${YOUTUBE_API_KEY}`
+  );
+  
+  const statsData = await statsResponse.json();
+  const statsMap: Record<string, any> = {};
+  statsData.items?.forEach((item: any) => {
+    statsMap[item.id] = item;
+  });
+  
+  const channelIds = [...new Set(data.items.map((item: any) => item.snippet.channelId))];
+  const channelAvatars = await fetchChannelAvatars(channelIds as string[]);
+  
+  return data.items.map((item: any) => {
+    const stats = statsMap[item.id.videoId];
+    return {
+      id: item.id.videoId,
       title: item.snippet.title,
       channelName: item.snippet.channelTitle,
       channelId: item.snippet.channelId,
       channelAvatar: channelAvatars[item.snippet.channelId] || '',
-      thumbnailUrl: item.snippet.thumbnails.high?.url || item.snippet.thumbnails.medium?.url || item.snippet.thumbnails.default?.url,
-      viewCount: formatViewCount(item.statistics.viewCount),
+      thumbnailUrl: item.snippet.thumbnails.high?.url || item.snippet.thumbnails.medium?.url,
+      viewCount: stats ? formatViewCount(stats.statistics?.viewCount || '0') : '0',
       publishedAt: item.snippet.publishedAt,
-      duration: formatDuration(item.contentDetails.duration),
+      duration: stats ? formatDuration(stats.contentDetails?.duration || '') : '',
       description: item.snippet.description,
-    }));
-  } catch (error) {
-    console.error('Error fetching trending videos:', error);
-    return [];
-  }
-}
-
-export async function searchVideos(query: string, maxResults: number = 20): Promise<YouTubeVideo[]> {
-  try {
-    const response = await fetch(
-      `${BASE_URL}/search?part=snippet&q=${encodeURIComponent(query)}&type=video&maxResults=${maxResults}&key=${YOUTUBE_API_KEY}`
-    );
-    
-    if (!response.ok) throw new Error('Failed to search videos');
-    
-    const data = await response.json();
-    const videoIds = data.items.map((item: any) => item.id.videoId).join(',');
-    
-    const statsResponse = await fetch(
-      `${BASE_URL}/videos?part=contentDetails,statistics&id=${videoIds}&key=${YOUTUBE_API_KEY}`
-    );
-    
-    const statsData = await statsResponse.json();
-    const statsMap: Record<string, any> = {};
-    statsData.items.forEach((item: any) => {
-      statsMap[item.id] = item;
-    });
-    
-    const channelIds = [...new Set(data.items.map((item: any) => item.snippet.channelId))];
-    const channelAvatars = await fetchChannelAvatars(channelIds as string[]);
-    
-    return data.items.map((item: any) => {
-      const stats = statsMap[item.id.videoId];
-      return {
-        id: item.id.videoId,
-        title: item.snippet.title,
-        channelName: item.snippet.channelTitle,
-        channelId: item.snippet.channelId,
-        channelAvatar: channelAvatars[item.snippet.channelId] || '',
-        thumbnailUrl: item.snippet.thumbnails.high?.url || item.snippet.thumbnails.medium?.url,
-        viewCount: stats ? formatViewCount(stats.statistics.viewCount) : '0',
-        publishedAt: item.snippet.publishedAt,
-        duration: stats ? formatDuration(stats.contentDetails.duration) : '',
-        description: item.snippet.description,
-      };
-    });
-  } catch (error) {
-    console.error('Error searching videos:', error);
-    return [];
-  }
+    };
+  });
 }
 
 export async function fetchShorts(maxResults: number = 20): Promise<YouTubeVideo[]> {
-  try {
-    const response = await fetch(
-      `${BASE_URL}/search?part=snippet&q=%23shorts&type=video&videoDuration=short&maxResults=${maxResults}&regionCode=IN&key=${YOUTUBE_API_KEY}`
-    );
-    
-    if (!response.ok) throw new Error('Failed to fetch shorts');
-    
-    const data = await response.json();
-    const videoIds = data.items.map((item: any) => item.id.videoId).join(',');
-    
-    const statsResponse = await fetch(
-      `${BASE_URL}/videos?part=statistics&id=${videoIds}&key=${YOUTUBE_API_KEY}`
-    );
-    
-    const statsData = await statsResponse.json();
-    const statsMap: Record<string, any> = {};
-    statsData.items.forEach((item: any) => {
-      statsMap[item.id] = item;
-    });
-    
-    return data.items.map((item: any) => {
-      const stats = statsMap[item.id.videoId];
-      return {
-        id: item.id.videoId,
-        title: item.snippet.title,
-        channelName: item.snippet.channelTitle,
-        channelId: item.snippet.channelId,
-        thumbnailUrl: item.snippet.thumbnails.high?.url || item.snippet.thumbnails.medium?.url,
-        viewCount: stats ? formatViewCount(stats.statistics.viewCount) : '0',
-        publishedAt: item.snippet.publishedAt,
-      };
-    });
-  } catch (error) {
-    console.error('Error fetching shorts:', error);
+  const response = await fetch(
+    `${BASE_URL}/search?part=snippet&q=%23shorts&type=video&videoDuration=short&maxResults=${maxResults}&regionCode=IN&key=${YOUTUBE_API_KEY}`
+  );
+  
+  if (!response.ok) {
+    const errorData = await response.json();
+    console.error('YouTube API Error:', errorData);
+    throw new Error(errorData.error?.message || 'Failed to fetch shorts');
+  }
+  
+  const data = await response.json();
+  
+  if (!data.items || data.items.length === 0) {
     return [];
   }
+  
+  const videoIds = data.items.map((item: any) => item.id.videoId).join(',');
+  
+  const statsResponse = await fetch(
+    `${BASE_URL}/videos?part=statistics&id=${videoIds}&key=${YOUTUBE_API_KEY}`
+  );
+  
+  const statsData = await statsResponse.json();
+  const statsMap: Record<string, any> = {};
+  statsData.items?.forEach((item: any) => {
+    statsMap[item.id] = item;
+  });
+  
+  return data.items.map((item: any) => {
+    const stats = statsMap[item.id.videoId];
+    return {
+      id: item.id.videoId,
+      title: item.snippet.title,
+      channelName: item.snippet.channelTitle,
+      channelId: item.snippet.channelId,
+      thumbnailUrl: item.snippet.thumbnails.high?.url || item.snippet.thumbnails.medium?.url,
+      viewCount: stats ? formatViewCount(stats.statistics?.viewCount || '0') : '0',
+      publishedAt: item.snippet.publishedAt,
+    };
+  });
 }
 
 export async function fetchVideoDetails(videoId: string): Promise<YouTubeVideo | null> {
