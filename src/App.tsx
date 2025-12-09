@@ -7,8 +7,8 @@ import { ThemeProvider } from "@/contexts/ThemeContext";
 import Index from "./pages/Index";
 import Shorts from "./pages/Shorts";
 import WatchShort from "./pages/WatchShort";
-import Subscriptions from "./pages/Subscriptions";
-import Library from "./pages/Library";
+import Saved from "./pages/Saved";
+import Profile from "./pages/Profile";
 import Settings from "./pages/Settings";
 import Privacy from "./pages/Privacy";
 import Search from "./pages/Search";
@@ -28,8 +28,8 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/shorts" element={<Shorts />} />
             <Route path="/shorts/:id" element={<WatchShort />} />
-            <Route path="/subscriptions" element={<Subscriptions />} />
-            <Route path="/library" element={<Library />} />
+            <Route path="/saved" element={<Saved />} />
+            <Route path="/profile" element={<Profile />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/settings/*" element={<Settings />} />
             <Route path="/privacy" element={<Privacy />} />
