@@ -14,7 +14,7 @@ export default {
     },
     extend: {
       fontFamily: {
-        sans: ['Roboto', 'sans-serif'],
+        sans: ['Inter', 'sans-serif'],
       },
       colors: {
         border: "hsl(var(--border))",
@@ -49,6 +49,24 @@ export default {
         card: {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
+        },
+        sp: {
+          primary: "hsl(var(--sp-primary))",
+          "primary-glow": "hsl(var(--sp-primary-glow))",
+          accent: "hsl(var(--sp-accent))",
+          "accent-glow": "hsl(var(--sp-accent-glow))",
+          surface: "hsl(var(--sp-surface))",
+          hover: "hsl(var(--sp-hover))",
+          chip: "hsl(var(--sp-chip))",
+          "chip-active": "hsl(var(--sp-chip-active))",
+          "chip-text": "hsl(var(--sp-chip-text))",
+          "chip-active-text": "hsl(var(--sp-chip-active-text))",
+          divider: "hsl(var(--sp-divider))",
+          icon: "hsl(var(--sp-icon))",
+          "text-secondary": "hsl(var(--sp-text-secondary))",
+          overlay: "hsl(var(--sp-overlay))",
+          "card-border": "hsl(var(--sp-card-border))",
+          "play-button": "hsl(var(--sp-play-button))",
         },
         youtube: {
           red: "hsl(var(--youtube-red))",
@@ -110,6 +128,10 @@ export default {
           "0%, 100%": { opacity: "1" },
           "50%": { opacity: "0.7" },
         },
+        "pulse-glow": {
+          "0%, 100%": { boxShadow: "0 0 10px hsl(var(--sp-accent) / 0.5)" },
+          "50%": { boxShadow: "0 0 25px hsl(var(--sp-accent) / 0.8)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -118,6 +140,7 @@ export default {
         "slide-up": "slide-up 0.3s ease-out forwards",
         "scale-in": "scale-in 0.2s ease-out forwards",
         "pulse-subtle": "pulse-subtle 2s ease-in-out infinite",
+        "pulse-glow": "pulse-glow 2s ease-in-out infinite",
       },
       spacing: {
         "safe-bottom": "env(safe-area-inset-bottom, 0)",

@@ -1,27 +1,80 @@
 import { useParams, Link } from 'react-router-dom';
-import { ChevronLeft, ThumbsUp, ThumbsDown, Share2, MoreHorizontal, Bell } from 'lucide-react';
+import { ChevronLeft, ThumbsUp, ThumbsDown, Share2, MoreHorizontal, Bell, Heart, Gauge, Clock } from 'lucide-react';
 import { VideoCard, VideoCardSkeleton } from '@/components/video/VideoCard';
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useVideoDetails, useRelatedVideos } from '@/hooks/useYouTube';
+import { usePlaybackSettings, playbackSpeeds, sleepTimerOptions } from '@/hooks/usePlaybackSettings';
+import { useSavedVideos } from '@/hooks/useSavedVideos';
 import { formatDistanceToNow } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 export default function Watch() {
   const { id } = useParams<{ id: string }>();
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
   const [isSubscribed, setIsSubscribed] = useState(false);
+  const [showSpeedMenu, setShowSpeedMenu] = useState(false);
+  const [showSleepMenu, setShowSleepMenu] = useState(false);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
   
   const { data: video, isLoading: videoLoading } = useVideoDetails(id || '');
   const { data: relatedVideos, isLoading: relatedLoading } = useRelatedVideos(id || '');
+  const { speed, setSpeed, sleepTimer, setSleepTimer, timeRemaining } = usePlaybackSettings();
+  const { isSaved, toggleSave } = useSavedVideos();
 
   const formattedDate = video?.publishedAt 
     ? formatDistanceToNow(new Date(video.publishedAt), { addSuffix: true })
     : '';
 
+  const saved = video ? isSaved(id || '') : false;
+
+  // Apply playback speed to iframe
+  useEffect(() => {
+    if (iframeRef.current && iframeRef.current.contentWindow) {
+      // YouTube iframe API for playback rate
+      iframeRef.current.contentWindow.postMessage(JSON.stringify({
+        event: 'command',
+        func: 'setPlaybackRate',
+        args: [speed]
+      }), '*');
+    }
+  }, [speed]);
+
+  // Listen for sleep timer end
+  useEffect(() => {
+    const handleSleepEnd = () => {
+      if (iframeRef.current && iframeRef.current.contentWindow) {
+        iframeRef.current.contentWindow.postMessage(JSON.stringify({
+          event: 'command',
+          func: 'pauseVideo',
+          args: []
+        }), '*');
+      }
+    };
+
+    window.addEventListener('shadowplay-sleep-timer-end', handleSleepEnd);
+    return () => window.removeEventListener('shadowplay-sleep-timer-end', handleSleepEnd);
+  }, []);
+
+  const handleSave = () => {
+    if (video) {
+      toggleSave({
+        id: id || '',
+        title: video.title,
+        channelName: video.channelName,
+        channelAvatar: video.channelAvatar,
+        thumbnailUrl: video.thumbnailUrl,
+        viewCount: video.viewCount,
+        publishedAt: video.publishedAt,
+      });
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background pb-4">
       {/* Video Player */}
-      <div className="relative aspect-video bg-black">
+      <div className="relative aspect-video bg-sp-overlay">
         <iframe
+          ref={iframeRef}
           className="w-full h-full"
           src={`https://www.youtube.com/embed/${id}?autoplay=1&rel=0&playsinline=1&enablejsapi=1`}
           title="Video Player"
@@ -33,10 +86,25 @@ export default function Watch() {
         {/* Back Button Overlay */}
         <Link
           to="/"
-          className="absolute top-4 left-4 p-2 rounded-full bg-youtube-overlay/50 hover:bg-youtube-overlay/70 transition-colors"
+          className="absolute top-4 left-4 p-2 rounded-full bg-sp-overlay/50 hover:bg-sp-overlay/70 transition-colors backdrop-blur-sm"
         >
-          <ChevronLeft className="w-6 h-6 text-white" />
+          <ChevronLeft className="w-6 h-6 text-foreground" />
         </Link>
+
+        {/* Speed & Sleep Timer Indicator */}
+        <div className="absolute top-4 right-4 flex items-center gap-2">
+          {speed !== 1 && (
+            <div className="px-2 py-1 rounded-full bg-primary/80 backdrop-blur-sm text-xs font-medium text-primary-foreground">
+              {speed}x
+            </div>
+          )}
+          {timeRemaining && (
+            <div className="px-2 py-1 rounded-full bg-accent/80 backdrop-blur-sm text-xs font-medium text-accent-foreground">
+              <Clock className="w-3 h-3 inline mr-1" />
+              {timeRemaining}m
+            </div>
+          )}
+        </div>
       </div>
 
       {videoLoading ? (
@@ -48,7 +116,7 @@ export default function Watch() {
         <>
           {/* Video Info */}
           <div className="px-4 py-3">
-            <h1 className="text-lg font-medium text-foreground leading-snug">
+            <h1 className="text-lg font-semibold text-foreground leading-snug">
               {video.title}
             </h1>
             
@@ -57,7 +125,7 @@ export default function Watch() {
               className="text-sm text-muted-foreground mt-2"
             >
               {video.viewCount} views • {formattedDate}
-              <span className="text-foreground ml-1">
+              <span className="text-primary ml-1 font-medium">
                 {isDescriptionExpanded ? '...less' : '...more'}
               </span>
             </button>
@@ -77,7 +145,7 @@ export default function Watch() {
                   <img
                     src={video.channelAvatar}
                     alt={video.channelName}
-                    className="w-10 h-10 rounded-full"
+                    className="w-10 h-10 rounded-full ring-2 ring-primary/30"
                   />
                 )}
                 <div>
@@ -87,11 +155,12 @@ export default function Watch() {
               
               <button
                 onClick={() => setIsSubscribed(!isSubscribed)}
-                className={`px-4 py-2 rounded-full font-medium text-sm transition-colors ${
+                className={cn(
+                  'px-4 py-2 rounded-full font-medium text-sm transition-all',
                   isSubscribed
-                    ? 'bg-muted text-foreground'
-                    : 'bg-primary text-primary-foreground'
-                }`}
+                    ? 'bg-sp-chip text-foreground'
+                    : 'bg-primary text-primary-foreground glow-primary'
+                )}
               >
                 {isSubscribed ? (
                   <span className="flex items-center gap-1">
@@ -106,27 +175,99 @@ export default function Watch() {
 
           {/* Action Buttons */}
           <div className="flex gap-2 px-4 py-3 overflow-x-auto hide-scrollbar">
-            <button className="flex items-center gap-2 px-4 py-2 bg-muted rounded-full">
-              <ThumbsUp className="w-5 h-5 text-youtube-icon" />
+            <button className="flex items-center gap-2 px-4 py-2 bg-sp-chip rounded-full hover:bg-sp-hover transition-colors">
+              <ThumbsUp className="w-5 h-5 text-sp-icon" />
               <span className="text-sm font-medium text-foreground">Like</span>
               <div className="w-px h-5 bg-border mx-1" />
-              <ThumbsDown className="w-5 h-5 text-youtube-icon" />
+              <ThumbsDown className="w-5 h-5 text-sp-icon" />
             </button>
             
-            <button className="flex items-center gap-2 px-4 py-2 bg-muted rounded-full">
-              <Share2 className="w-5 h-5 text-youtube-icon" />
+            <button 
+              onClick={handleSave}
+              className={cn(
+                "flex items-center gap-2 px-4 py-2 rounded-full transition-colors",
+                saved ? "bg-accent/20 text-accent" : "bg-sp-chip hover:bg-sp-hover"
+              )}
+            >
+              <Heart className={cn("w-5 h-5", saved ? "fill-current" : "text-sp-icon")} />
+              <span className="text-sm font-medium">{saved ? 'Saved' : 'Save'}</span>
+            </button>
+            
+            <button className="flex items-center gap-2 px-4 py-2 bg-sp-chip rounded-full hover:bg-sp-hover transition-colors">
+              <Share2 className="w-5 h-5 text-sp-icon" />
               <span className="text-sm font-medium text-foreground">Share</span>
             </button>
+
+            {/* Playback Speed */}
+            <div className="relative">
+              <button 
+                onClick={() => setShowSpeedMenu(!showSpeedMenu)}
+                className="flex items-center gap-2 px-4 py-2 bg-sp-chip rounded-full hover:bg-sp-hover transition-colors"
+              >
+                <Gauge className="w-5 h-5 text-sp-icon" />
+                <span className="text-sm font-medium text-foreground">{speed}x</span>
+              </button>
+              
+              {showSpeedMenu && (
+                <div className="absolute bottom-12 left-0 bg-card border border-sp-divider rounded-xl shadow-lg p-2 min-w-[120px] animate-scale-in z-50">
+                  {playbackSpeeds.map((s) => (
+                    <button
+                      key={s}
+                      onClick={() => { setSpeed(s); setShowSpeedMenu(false); }}
+                      className={cn(
+                        "w-full px-3 py-2 text-sm rounded-lg text-left transition-colors",
+                        speed === s ? "bg-primary text-primary-foreground" : "hover:bg-sp-hover"
+                      )}
+                    >
+                      {s}x
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Sleep Timer */}
+            <div className="relative">
+              <button 
+                onClick={() => setShowSleepMenu(!showSleepMenu)}
+                className={cn(
+                  "flex items-center gap-2 px-4 py-2 rounded-full transition-colors",
+                  sleepTimer ? "bg-accent/20 text-accent" : "bg-sp-chip hover:bg-sp-hover"
+                )}
+              >
+                <Clock className={cn("w-5 h-5", sleepTimer ? "" : "text-sp-icon")} />
+                <span className="text-sm font-medium">
+                  {timeRemaining ? `${timeRemaining}m` : 'Sleep'}
+                </span>
+              </button>
+              
+              {showSleepMenu && (
+                <div className="absolute bottom-12 right-0 bg-card border border-sp-divider rounded-xl shadow-lg p-2 min-w-[140px] animate-scale-in z-50">
+                  {sleepTimerOptions.map((option) => (
+                    <button
+                      key={option.label}
+                      onClick={() => { setSleepTimer(option.value); setShowSleepMenu(false); }}
+                      className={cn(
+                        "w-full px-3 py-2 text-sm rounded-lg text-left transition-colors",
+                        sleepTimer === option.value ? "bg-accent text-accent-foreground" : "hover:bg-sp-hover"
+                      )}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
             
-            <button className="p-2 bg-muted rounded-full">
-              <MoreHorizontal className="w-5 h-5 text-youtube-icon" />
+            <button className="p-2 bg-sp-chip rounded-full hover:bg-sp-hover transition-colors">
+              <MoreHorizontal className="w-5 h-5 text-sp-icon" />
             </button>
           </div>
         </>
       ) : null}
 
       {/* Divider */}
-      <div className="h-px bg-youtube-divider mx-4 my-2" />
+      <div className="h-px bg-sp-divider mx-4 my-2" />
 
       {/* Related Videos */}
       <div className="px-2 space-y-1">

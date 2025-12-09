@@ -1,6 +1,7 @@
-@import '@fontsource/roboto/400.css';
-@import '@fontsource/roboto/500.css';
-@import '@fontsource/roboto/700.css';
+@import '@fontsource/inter/400.css';
+@import '@fontsource/inter/500.css';
+@import '@fontsource/inter/600.css';
+@import '@fontsource/inter/700.css';
 
 @tailwind base;
 @tailwind components;
@@ -8,127 +9,163 @@
 
 @layer base {
   :root {
-    /* YouTube Light Mode Colors */
-    --background: 0 0% 100%;
-    --foreground: 0 0% 6%;
+    /* ShadowPlay Color Themes - Default: Electric Blue */
+    --sp-primary: 214 84% 34%;
+    --sp-primary-glow: 214 84% 45%;
+    --sp-accent: 152 100% 50%;
+    --sp-accent-glow: 152 100% 60%;
 
-    --card: 0 0% 100%;
-    --card-foreground: 0 0% 6%;
+    /* Pure Black Background */
+    --background: 0 0% 0%;
+    --foreground: 0 0% 100%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 6%;
+    --card: 0 0% 8%;
+    --card-foreground: 0 0% 100%;
 
-    /* YouTube Red */
-    --primary: 0 100% 50%;
+    --popover: 0 0% 8%;
+    --popover-foreground: 0 0% 100%;
+
+    /* Electric Blue Primary */
+    --primary: 214 84% 34%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 0 0% 96%;
-    --secondary-foreground: 0 0% 6%;
+    --secondary: 0 0% 12%;
+    --secondary-foreground: 0 0% 100%;
 
-    --muted: 0 0% 94%;
-    --muted-foreground: 0 0% 45%;
+    --muted: 0 0% 15%;
+    --muted-foreground: 0 0% 60%;
 
-    --accent: 0 0% 96%;
-    --accent-foreground: 0 0% 6%;
+    --accent: 152 100% 50%;
+    --accent-foreground: 0 0% 0%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 0 0% 90%;
-    --input: 0 0% 90%;
-    --ring: 0 100% 50%;
+    --border: 0 0% 18%;
+    --input: 0 0% 18%;
+    --ring: 214 84% 34%;
 
     --radius: 0.75rem;
 
-    /* YouTube specific */
-    --youtube-red: 0 100% 50%;
-    --youtube-hover: 0 0% 94%;
-    --youtube-chip: 0 0% 94%;
-    --youtube-chip-active: 0 0% 6%;
-    --youtube-chip-text: 0 0% 6%;
-    --youtube-chip-active-text: 0 0% 100%;
-    --youtube-divider: 0 0% 90%;
-    --youtube-icon: 0 0% 20%;
-    --youtube-text-secondary: 0 0% 38%;
-    --youtube-surface: 0 0% 100%;
-    --youtube-overlay: 0 0% 0%;
+    /* ShadowPlay specific */
+    --sp-surface: 0 0% 6%;
+    --sp-hover: 0 0% 12%;
+    --sp-chip: 0 0% 15%;
+    --sp-chip-active: 214 84% 34%;
+    --sp-chip-text: 0 0% 80%;
+    --sp-chip-active-text: 0 0% 100%;
+    --sp-divider: 0 0% 15%;
+    --sp-icon: 0 0% 80%;
+    --sp-text-secondary: 0 0% 55%;
+    --sp-overlay: 0 0% 0%;
+    --sp-card-border: 214 84% 34%;
+    --sp-play-button: 152 100% 50%;
 
     /* Navigation */
-    --nav-background: 0 0% 100%;
-    --nav-foreground: 0 0% 38%;
-    --nav-active: 0 0% 6%;
-    --nav-border: 0 0% 90%;
+    --nav-background: 0 0% 0%;
+    --nav-foreground: 0 0% 55%;
+    --nav-active: 152 100% 50%;
+    --nav-border: 0 0% 12%;
 
     /* Sidebar */
-    --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 0 0% 6%;
-    --sidebar-primary: 0 100% 50%;
+    --sidebar-background: 0 0% 4%;
+    --sidebar-foreground: 0 0% 100%;
+    --sidebar-primary: 214 84% 34%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 0 0% 96%;
-    --sidebar-accent-foreground: 0 0% 6%;
-    --sidebar-border: 0 0% 90%;
-    --sidebar-ring: 0 100% 50%;
+    --sidebar-accent: 0 0% 12%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 0 0% 15%;
+    --sidebar-ring: 214 84% 34%;
+
+    /* YouTube compatibility aliases */
+    --youtube-red: 214 84% 34%;
+    --youtube-hover: 0 0% 12%;
+    --youtube-chip: 0 0% 15%;
+    --youtube-chip-active: 214 84% 34%;
+    --youtube-chip-text: 0 0% 80%;
+    --youtube-chip-active-text: 0 0% 100%;
+    --youtube-divider: 0 0% 15%;
+    --youtube-icon: 0 0% 80%;
+    --youtube-text-secondary: 0 0% 55%;
+    --youtube-surface: 0 0% 6%;
+    --youtube-overlay: 0 0% 0%;
+  }
+
+  /* Theme Variants */
+  .theme-blue {
+    --primary: 214 84% 34%;
+    --primary-foreground: 0 0% 100%;
+    --sp-primary: 214 84% 34%;
+    --sp-primary-glow: 214 84% 45%;
+    --ring: 214 84% 34%;
+    --sp-chip-active: 214 84% 34%;
+    --sp-card-border: 214 84% 34%;
+    --youtube-red: 214 84% 34%;
+    --youtube-chip-active: 214 84% 34%;
+  }
+
+  .theme-green {
+    --primary: 152 76% 40%;
+    --primary-foreground: 0 0% 100%;
+    --sp-primary: 152 76% 40%;
+    --sp-primary-glow: 152 76% 50%;
+    --ring: 152 76% 40%;
+    --sp-chip-active: 152 76% 40%;
+    --sp-card-border: 152 76% 40%;
+    --youtube-red: 152 76% 40%;
+    --youtube-chip-active: 152 76% 40%;
+  }
+
+  .theme-purple {
+    --primary: 270 70% 50%;
+    --primary-foreground: 0 0% 100%;
+    --sp-primary: 270 70% 50%;
+    --sp-primary-glow: 270 70% 60%;
+    --ring: 270 70% 50%;
+    --sp-chip-active: 270 70% 50%;
+    --sp-card-border: 270 70% 50%;
+    --youtube-red: 270 70% 50%;
+    --youtube-chip-active: 270 70% 50%;
+  }
+
+  .theme-orange {
+    --primary: 25 95% 53%;
+    --primary-foreground: 0 0% 100%;
+    --sp-primary: 25 95% 53%;
+    --sp-primary-glow: 25 95% 63%;
+    --ring: 25 95% 53%;
+    --sp-chip-active: 25 95% 53%;
+    --sp-card-border: 25 95% 53%;
+    --youtube-red: 25 95% 53%;
+    --youtube-chip-active: 25 95% 53%;
+  }
+
+  .theme-red {
+    --primary: 0 84% 50%;
+    --primary-foreground: 0 0% 100%;
+    --sp-primary: 0 84% 50%;
+    --sp-primary-glow: 0 84% 60%;
+    --ring: 0 84% 50%;
+    --sp-chip-active: 0 84% 50%;
+    --sp-card-border: 0 84% 50%;
+    --youtube-red: 0 84% 50%;
+    --youtube-chip-active: 0 84% 50%;
+  }
+
+  .theme-cyan {
+    --primary: 187 85% 43%;
+    --primary-foreground: 0 0% 100%;
+    --sp-primary: 187 85% 43%;
+    --sp-primary-glow: 187 85% 53%;
+    --ring: 187 85% 43%;
+    --sp-chip-active: 187 85% 43%;
+    --sp-card-border: 187 85% 43%;
+    --youtube-red: 187 85% 43%;
+    --youtube-chip-active: 187 85% 43%;
   }
 
   .dark {
-    /* YouTube Dark Mode Colors */
-    --background: 0 0% 6%;
-    --foreground: 0 0% 100%;
-
-    --card: 0 0% 15%;
-    --card-foreground: 0 0% 100%;
-
-    --popover: 0 0% 15%;
-    --popover-foreground: 0 0% 100%;
-
-    /* YouTube Red stays same */
-    --primary: 0 100% 50%;
-    --primary-foreground: 0 0% 100%;
-
-    --secondary: 0 0% 20%;
-    --secondary-foreground: 0 0% 100%;
-
-    --muted: 0 0% 20%;
-    --muted-foreground: 0 0% 64%;
-
-    --accent: 0 0% 20%;
-    --accent-foreground: 0 0% 100%;
-
-    --destructive: 0 62% 30%;
-    --destructive-foreground: 0 0% 100%;
-
-    --border: 0 0% 20%;
-    --input: 0 0% 20%;
-    --ring: 0 100% 50%;
-
-    /* YouTube Dark specific */
-    --youtube-red: 0 100% 50%;
-    --youtube-hover: 0 0% 20%;
-    --youtube-chip: 0 0% 20%;
-    --youtube-chip-active: 0 0% 100%;
-    --youtube-chip-text: 0 0% 100%;
-    --youtube-chip-active-text: 0 0% 6%;
-    --youtube-divider: 0 0% 20%;
-    --youtube-icon: 0 0% 100%;
-    --youtube-text-secondary: 0 0% 64%;
-    --youtube-surface: 0 0% 15%;
-    --youtube-overlay: 0 0% 0%;
-
-    /* Navigation Dark */
-    --nav-background: 0 0% 6%;
-    --nav-foreground: 0 0% 64%;
-    --nav-active: 0 0% 100%;
-    --nav-border: 0 0% 20%;
-
-    /* Sidebar Dark */
-    --sidebar-background: 0 0% 6%;
-    --sidebar-foreground: 0 0% 100%;
-    --sidebar-primary: 0 100% 50%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 0 0% 20%;
-    --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 0 0% 20%;
-    --sidebar-ring: 0 100% 50%;
+    /* Dark mode is default for ShadowPlay - same values */
   }
 }
 
@@ -138,13 +175,13 @@
   }
 
   html {
-    font-family: 'Roboto', sans-serif;
+    font-family: 'Inter', sans-serif;
     -webkit-tap-highlight-color: transparent;
   }
 
   body {
     @apply bg-background text-foreground antialiased;
-    font-family: 'Roboto', sans-serif;
+    font-family: 'Inter', sans-serif;
     overflow-x: hidden;
   }
 }
@@ -180,9 +217,22 @@
   .safe-top {
     padding-top: env(safe-area-inset-top, 0);
   }
+
+  /* Glow effects */
+  .glow-primary {
+    box-shadow: 0 0 20px hsl(var(--sp-primary) / 0.4);
+  }
+
+  .glow-accent {
+    box-shadow: 0 0 20px hsl(var(--sp-accent) / 0.4);
+  }
+
+  .card-glow {
+    box-shadow: 0 0 30px -10px hsl(var(--sp-primary) / 0.3);
+  }
 }
 
-/* YouTube-style animations */
+/* ShadowPlay animations */
 @keyframes fade-in {
   from {
     opacity: 0;
@@ -225,6 +275,24 @@
   }
 }
 
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 10px hsl(var(--sp-accent) / 0.5);
+  }
+  50% {
+    box-shadow: 0 0 25px hsl(var(--sp-accent) / 0.8);
+  }
+}
+
+@keyframes border-glow {
+  0%, 100% {
+    border-color: hsl(var(--sp-primary) / 0.5);
+  }
+  50% {
+    border-color: hsl(var(--sp-primary));
+  }
+}
+
 .animate-fade-in {
   animation: fade-in 0.3s ease-out forwards;
 }
@@ -235,6 +303,14 @@
 
 .animate-scale-in {
   animation: scale-in 0.2s ease-out forwards;
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+.animate-border-glow {
+  animation: border-glow 2s ease-in-out infinite;
 }
 
 .skeleton-shimmer {
