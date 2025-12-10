@@ -1,15 +1,14 @@
-import { useParams, useLocation } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { useShorts } from '@/hooks/useYouTube';
 import { ShortsPlayer } from '@/components/shorts/ShortsPlayer';
 import { useMemo } from 'react';
 
 export default function WatchShort() {
   const { id } = useParams<{ id: string }>();
-  const location = useLocation();
-  const { data, fetchNextPage, hasNextPage, isFetchingNextPage } = useShorts();
+  const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } = useShorts();
 
   const allShorts = useMemo(() => 
-    data?.pages.flatMap(page => page) ?? [], 
+    data?.pages.flatMap(page => page.items) ?? [], 
     [data]
   );
 
@@ -20,31 +19,25 @@ export default function WatchShort() {
     return index >= 0 ? index : 0;
   }, [id, allShorts]);
 
-  // Get shorts from location state if passed, otherwise use fetched data
-  const shortsFromState = location.state?.shorts as typeof allShorts | undefined;
-  const initialIndexFromState = location.state?.initialIndex as number | undefined;
-
-  const shorts = shortsFromState || allShorts;
-  const startIndex = initialIndexFromState ?? initialIndex;
-
-  if (shorts.length === 0) {
+  if (isLoading && allShorts.length === 0) {
     return (
       <div className="fixed inset-0 bg-sp-overlay z-50 flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+        <div className="w-10 h-10 border-3 border-primary border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
 
   return (
     <ShortsPlayer
-      shorts={shorts}
-      initialIndex={startIndex}
+      shorts={allShorts}
+      initialIndex={initialIndex}
       onLoadMore={() => {
         if (hasNextPage && !isFetchingNextPage) {
           fetchNextPage();
         }
       }}
       hasMore={hasNextPage}
+      isLoading={isFetchingNextPage}
     />
   );
 }
