@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { ChevronLeft, ThumbsUp, ThumbsDown, MessageCircle, Share2, MoreVertical, Heart } from 'lucide-react';
+import { ChevronLeft, ThumbsUp, ThumbsDown, MessageCircle, Share2, MoreVertical, Heart, ChevronUp, ChevronDown } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useSavedVideos } from '@/hooks/useSavedVideos';
 import { cn } from '@/lib/utils';
@@ -24,12 +24,12 @@ interface ShortsPlayerProps {
 
 export function ShortsPlayer({ shorts, initialIndex = 0, onLoadMore, hasMore, isLoading }: ShortsPlayerProps) {
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
+  const [isTransitioning, setIsTransitioning] = useState(false);
   const navigate = useNavigate();
   const { isSaved, toggleSave } = useSavedVideos();
-  const containerRef = useRef<HTMLDivElement>(null);
   const touchStartY = useRef(0);
-  const touchEndY = useRef(0);
-  const isScrolling = useRef(false);
+  const touchCurrentY = useRef(0);
+  const [dragOffset, setDragOffset] = useState(0);
 
   const currentShort = shorts[currentIndex];
   const saved = currentShort ? isSaved(currentShort.id) : false;
@@ -42,64 +42,51 @@ export function ShortsPlayer({ shorts, initialIndex = 0, onLoadMore, hasMore, is
   }, [currentIndex, shorts.length, hasMore, onLoadMore, isLoading]);
 
   const goToNext = useCallback(() => {
-    if (isScrolling.current) return;
+    if (isTransitioning) return;
     if (currentIndex < shorts.length - 1) {
-      isScrolling.current = true;
+      setIsTransitioning(true);
       setCurrentIndex(prev => prev + 1);
-      setTimeout(() => { isScrolling.current = false; }, 300);
+      setTimeout(() => setIsTransitioning(false), 400);
     } else if (hasMore && onLoadMore) {
       onLoadMore();
     }
-  }, [currentIndex, shorts.length, hasMore, onLoadMore]);
+  }, [currentIndex, shorts.length, hasMore, onLoadMore, isTransitioning]);
 
   const goToPrev = useCallback(() => {
-    if (isScrolling.current) return;
+    if (isTransitioning) return;
     if (currentIndex > 0) {
-      isScrolling.current = true;
+      setIsTransitioning(true);
       setCurrentIndex(prev => prev - 1);
-      setTimeout(() => { isScrolling.current = false; }, 300);
+      setTimeout(() => setIsTransitioning(false), 400);
     }
-  }, [currentIndex]);
+  }, [currentIndex, isTransitioning]);
 
-  // Touch handlers for swipe
+  // Touch handlers
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartY.current = e.touches[0].clientY;
+    touchCurrentY.current = e.touches[0].clientY;
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
-    touchEndY.current = e.touches[0].clientY;
+    touchCurrentY.current = e.touches[0].clientY;
+    const diff = touchStartY.current - touchCurrentY.current;
+    // Limit drag offset
+    const maxDrag = 150;
+    setDragOffset(Math.max(-maxDrag, Math.min(maxDrag, diff)));
   };
 
   const handleTouchEnd = () => {
-    const diff = touchStartY.current - touchEndY.current;
-    const threshold = 50;
+    const diff = touchStartY.current - touchCurrentY.current;
+    const threshold = 80;
 
-    if (Math.abs(diff) > threshold) {
-      if (diff > 0) {
-        goToNext(); // Swipe up - next video
-      } else {
-        goToPrev(); // Swipe down - previous video
-      }
+    if (diff > threshold) {
+      goToNext(); // Swipe up
+    } else if (diff < -threshold) {
+      goToPrev(); // Swipe down
     }
+    
+    setDragOffset(0);
   };
-
-  // Mouse wheel for desktop
-  const handleWheel = useCallback((e: WheelEvent) => {
-    e.preventDefault();
-    if (e.deltaY > 30) {
-      goToNext();
-    } else if (e.deltaY < -30) {
-      goToPrev();
-    }
-  }, [goToNext, goToPrev]);
-
-  useEffect(() => {
-    const container = containerRef.current;
-    if (container) {
-      container.addEventListener('wheel', handleWheel, { passive: false });
-      return () => container.removeEventListener('wheel', handleWheel);
-    }
-  }, [handleWheel]);
 
   // Keyboard navigation
   useEffect(() => {
@@ -107,7 +94,7 @@ export function ShortsPlayer({ shorts, initialIndex = 0, onLoadMore, hasMore, is
       if (e.key === 'ArrowUp' || e.key === 'k') {
         e.preventDefault();
         goToPrev();
-      } else if (e.key === 'ArrowDown' || e.key === 'j') {
+      } else if (e.key === 'ArrowDown' || e.key === 'j' || e.key === ' ') {
         e.preventDefault();
         goToNext();
       } else if (e.key === 'Escape') {
@@ -142,30 +129,69 @@ export function ShortsPlayer({ shorts, initialIndex = 0, onLoadMore, hasMore, is
   }
 
   return (
-    <div 
-      ref={containerRef}
-      className="fixed inset-0 bg-sp-overlay z-50 overflow-hidden touch-none select-none"
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
-    >
-      {/* Video Container with Snap Scroll Effect */}
-      <div 
-        className="relative w-full h-full transition-transform duration-300 ease-out"
-        style={{ transform: `translateY(0)` }}
-      >
+    <div className="fixed inset-0 bg-sp-overlay z-50 overflow-hidden">
+      {/* Video Stack */}
+      <div className="relative w-full h-full">
+        {/* Previous Video (behind) */}
+        {currentIndex > 0 && shorts[currentIndex - 1] && (
+          <div 
+            className="absolute inset-0 z-0"
+            style={{ 
+              transform: `translateY(${-100 + Math.max(0, -dragOffset / 3)}%)`,
+              opacity: dragOffset < 0 ? 0.5 : 0
+            }}
+          >
+            <img 
+              src={shorts[currentIndex - 1].thumbnailUrl} 
+              alt="" 
+              className="w-full h-full object-cover"
+            />
+          </div>
+        )}
+
         {/* Current Video */}
-        <div className="absolute inset-0 flex items-center justify-center">
+        <div 
+          className="absolute inset-0 z-10 transition-transform duration-300 ease-out"
+          style={{ 
+            transform: isTransitioning ? 'translateY(0)' : `translateY(${-dragOffset * 0.3}px)`,
+          }}
+        >
           <iframe
             key={currentShort.id}
             className="w-full h-full"
-            src={`https://www.youtube.com/embed/${currentShort.id}?autoplay=1&rel=0&playsinline=1&loop=1&playlist=${currentShort.id}&controls=0&mute=0&enablejsapi=1`}
+            src={`https://www.youtube.com/embed/${currentShort.id}?autoplay=1&rel=0&playsinline=1&loop=1&playlist=${currentShort.id}&controls=0&mute=0`}
             title="Shorts Player"
             frameBorder="0"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
             allowFullScreen
           />
         </div>
+
+        {/* Next Video (behind) */}
+        {currentIndex < shorts.length - 1 && shorts[currentIndex + 1] && (
+          <div 
+            className="absolute inset-0 z-0"
+            style={{ 
+              transform: `translateY(${100 - Math.max(0, dragOffset / 3)}%)`,
+              opacity: dragOffset > 0 ? 0.5 : 0
+            }}
+          >
+            <img 
+              src={shorts[currentIndex + 1].thumbnailUrl} 
+              alt="" 
+              className="w-full h-full object-cover"
+            />
+          </div>
+        )}
+
+        {/* Touch Overlay - This captures all touch events */}
+        <div 
+          className="absolute inset-0 z-20"
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+          style={{ touchAction: 'none' }}
+        />
       </div>
 
       {/* Back Button */}
@@ -176,22 +202,23 @@ export function ShortsPlayer({ shorts, initialIndex = 0, onLoadMore, hasMore, is
         <ChevronLeft className="w-6 h-6 text-foreground" />
       </button>
 
-      {/* Progress Indicator */}
-      <div className="absolute top-4 left-1/2 -translate-x-1/2 flex items-center gap-1 z-30">
-        {shorts.slice(Math.max(0, currentIndex - 2), currentIndex + 3).map((_, idx) => {
-          const actualIdx = Math.max(0, currentIndex - 2) + idx;
-          return (
-            <div
-              key={actualIdx}
-              className={cn(
-                "h-1 rounded-full transition-all duration-300",
-                actualIdx === currentIndex 
-                  ? "w-6 bg-primary" 
-                  : "w-1.5 bg-foreground/30"
-              )}
-            />
-          );
-        })}
+      {/* Navigation Buttons */}
+      <div className="absolute left-1/2 -translate-x-1/2 top-16 z-30 flex flex-col gap-2">
+        {currentIndex > 0 && (
+          <button 
+            onClick={goToPrev}
+            className="p-2 rounded-full bg-sp-overlay/50 hover:bg-sp-overlay/70 backdrop-blur-sm transition-colors"
+          >
+            <ChevronUp className="w-5 h-5 text-foreground" />
+          </button>
+        )}
+      </div>
+
+      {/* Progress Counter */}
+      <div className="absolute top-4 right-16 px-3 py-1 rounded-full bg-sp-overlay/50 backdrop-blur-sm z-30">
+        <span className="text-xs font-medium text-foreground">
+          {currentIndex + 1} / {shorts.length}
+        </span>
       </div>
 
       {/* Right Side Actions */}
@@ -244,8 +271,8 @@ export function ShortsPlayer({ shorts, initialIndex = 0, onLoadMore, hasMore, is
       </div>
 
       {/* Bottom Info */}
-      <div className="absolute bottom-8 left-4 right-20 z-30">
-        <div className="flex items-center gap-2 mb-2">
+      <div className="absolute bottom-8 left-4 right-20 z-30 pointer-events-none">
+        <div className="flex items-center gap-2 mb-2 pointer-events-auto">
           {currentShort.channelAvatar ? (
             <img
               src={currentShort.channelAvatar}
@@ -268,16 +295,19 @@ export function ShortsPlayer({ shorts, initialIndex = 0, onLoadMore, hasMore, is
         <p className="text-foreground/70 text-xs mt-1">{currentShort.viewCount} views</p>
       </div>
 
-      {/* Swipe Hint Animation */}
-      {currentIndex === 0 && (
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 animate-bounce">
-          <div className="px-3 py-1.5 rounded-full bg-sp-overlay/60 backdrop-blur-sm">
-            <span className="text-xs text-foreground/80">Swipe up for next</span>
-          </div>
+      {/* Swipe Hint & Next Button */}
+      {currentIndex < shorts.length - 1 && (
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-30">
+          <button 
+            onClick={goToNext}
+            className="p-2 rounded-full bg-sp-overlay/50 hover:bg-sp-overlay/70 backdrop-blur-sm transition-colors animate-bounce"
+          >
+            <ChevronDown className="w-5 h-5 text-foreground" />
+          </button>
         </div>
       )}
 
-      {/* Loading indicator for more */}
+      {/* Loading indicator */}
       {isLoading && currentIndex >= shorts.length - 2 && (
         <div className="absolute bottom-20 left-1/2 -translate-x-1/2 z-30">
           <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
