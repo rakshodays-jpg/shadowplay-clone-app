@@ -22,6 +22,11 @@ export interface YouTubeChannel {
   description: string;
 }
 
+export interface PagedResult<T> {
+  items: T[];
+  nextPageToken?: string;
+}
+
 function formatViewCount(count: string): string {
   const num = parseInt(count, 10);
   if (num >= 1_000_000_000) return `${(num / 1_000_000_000).toFixed(1)}B`;
@@ -44,9 +49,17 @@ function formatDuration(isoDuration: string): string {
   return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 }
 
-export async function fetchTrendingVideos(regionCode: string = 'IN', maxResults: number = 20): Promise<YouTubeVideo[]> {
+// Random search terms for variety in shorts
+const shortsSearchTerms = [
+  '#shorts', 'viral shorts', 'trending shorts india', 'funny shorts',
+  'shorts video', 'reels', 'short video', 'trending shorts',
+  'best shorts', 'new shorts', 'comedy shorts', 'music shorts'
+];
+
+export async function fetchTrendingVideos(regionCode: string = 'IN', maxResults: number = 20, pageToken?: string): Promise<PagedResult<YouTubeVideo>> {
+  const tokenParam = pageToken ? `&pageToken=${pageToken}` : '';
   const response = await fetch(
-    `${BASE_URL}/videos?part=snippet,contentDetails,statistics&chart=mostPopular&regionCode=${regionCode}&maxResults=${maxResults}&key=${YOUTUBE_API_KEY}`
+    `${BASE_URL}/videos?part=snippet,contentDetails,statistics&chart=mostPopular&regionCode=${regionCode}&maxResults=${maxResults}${tokenParam}&key=${YOUTUBE_API_KEY}`
   );
   
   if (!response.ok) {
@@ -58,24 +71,27 @@ export async function fetchTrendingVideos(regionCode: string = 'IN', maxResults:
   const data = await response.json();
   
   if (!data.items || data.items.length === 0) {
-    return [];
+    return { items: [], nextPageToken: undefined };
   }
   
   const channelIds = [...new Set(data.items.map((item: any) => item.snippet.channelId))];
   const channelAvatars = await fetchChannelAvatars(channelIds as string[]);
   
-  return data.items.map((item: any) => ({
-    id: item.id,
-    title: item.snippet.title,
-    channelName: item.snippet.channelTitle,
-    channelId: item.snippet.channelId,
-    channelAvatar: channelAvatars[item.snippet.channelId] || '',
-    thumbnailUrl: item.snippet.thumbnails.high?.url || item.snippet.thumbnails.medium?.url || item.snippet.thumbnails.default?.url,
-    viewCount: formatViewCount(item.statistics?.viewCount || '0'),
-    publishedAt: item.snippet.publishedAt,
-    duration: formatDuration(item.contentDetails?.duration || ''),
-    description: item.snippet.description,
-  }));
+  return {
+    items: data.items.map((item: any) => ({
+      id: item.id,
+      title: item.snippet.title,
+      channelName: item.snippet.channelTitle,
+      channelId: item.snippet.channelId,
+      channelAvatar: channelAvatars[item.snippet.channelId] || '',
+      thumbnailUrl: item.snippet.thumbnails.high?.url || item.snippet.thumbnails.medium?.url || item.snippet.thumbnails.default?.url,
+      viewCount: formatViewCount(item.statistics?.viewCount || '0'),
+      publishedAt: item.snippet.publishedAt,
+      duration: formatDuration(item.contentDetails?.duration || ''),
+      description: item.snippet.description,
+    })),
+    nextPageToken: data.nextPageToken,
+  };
 }
 
 export async function searchVideos(query: string, maxResults: number = 20): Promise<YouTubeVideo[]> {
@@ -127,9 +143,13 @@ export async function searchVideos(query: string, maxResults: number = 20): Prom
   });
 }
 
-export async function fetchShorts(maxResults: number = 20): Promise<YouTubeVideo[]> {
+export async function fetchShorts(maxResults: number = 20, pageToken?: string): Promise<PagedResult<YouTubeVideo>> {
+  // Use random search term for variety
+  const randomTerm = shortsSearchTerms[Math.floor(Math.random() * shortsSearchTerms.length)];
+  const tokenParam = pageToken ? `&pageToken=${pageToken}` : '';
+  
   const response = await fetch(
-    `${BASE_URL}/search?part=snippet&q=%23shorts&type=video&videoDuration=short&maxResults=${maxResults}&regionCode=IN&key=${YOUTUBE_API_KEY}`
+    `${BASE_URL}/search?part=snippet&q=${encodeURIComponent(randomTerm)}&type=video&videoDuration=short&maxResults=${maxResults}&regionCode=IN${tokenParam}&key=${YOUTUBE_API_KEY}`
   );
   
   if (!response.ok) {
@@ -141,13 +161,17 @@ export async function fetchShorts(maxResults: number = 20): Promise<YouTubeVideo
   const data = await response.json();
   
   if (!data.items || data.items.length === 0) {
-    return [];
+    return { items: [], nextPageToken: undefined };
   }
   
-  const videoIds = data.items.map((item: any) => item.id.videoId).join(',');
+  const videoIds = data.items.map((item: any) => item.id.videoId).filter(Boolean).join(',');
+  
+  if (!videoIds) {
+    return { items: [], nextPageToken: data.nextPageToken };
+  }
   
   const statsResponse = await fetch(
-    `${BASE_URL}/videos?part=statistics&id=${videoIds}&key=${YOUTUBE_API_KEY}`
+    `${BASE_URL}/videos?part=statistics,snippet&id=${videoIds}&key=${YOUTUBE_API_KEY}`
   );
   
   const statsData = await statsResponse.json();
@@ -156,18 +180,24 @@ export async function fetchShorts(maxResults: number = 20): Promise<YouTubeVideo
     statsMap[item.id] = item;
   });
   
-  return data.items.map((item: any) => {
-    const stats = statsMap[item.id.videoId];
-    return {
-      id: item.id.videoId,
-      title: item.snippet.title,
-      channelName: item.snippet.channelTitle,
-      channelId: item.snippet.channelId,
-      thumbnailUrl: item.snippet.thumbnails.high?.url || item.snippet.thumbnails.medium?.url,
-      viewCount: stats ? formatViewCount(stats.statistics?.viewCount || '0') : '0',
-      publishedAt: item.snippet.publishedAt,
-    };
-  });
+  return {
+    items: data.items
+      .filter((item: any) => item.id?.videoId)
+      .map((item: any) => {
+        const stats = statsMap[item.id.videoId];
+        return {
+          id: item.id.videoId,
+          title: item.snippet.title,
+          channelName: item.snippet.channelTitle,
+          channelId: item.snippet.channelId,
+          channelAvatar: stats?.snippet?.thumbnails?.default?.url || '',
+          thumbnailUrl: item.snippet.thumbnails.high?.url || item.snippet.thumbnails.medium?.url,
+          viewCount: stats ? formatViewCount(stats.statistics?.viewCount || '0') : '0',
+          publishedAt: item.snippet.publishedAt,
+        };
+      }),
+    nextPageToken: data.nextPageToken,
+  };
 }
 
 export async function fetchVideoDetails(videoId: string): Promise<YouTubeVideo | null> {
