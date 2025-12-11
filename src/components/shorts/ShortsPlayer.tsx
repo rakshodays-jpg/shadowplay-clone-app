@@ -203,7 +203,7 @@ export function ShortsPlayer({ shorts, initialIndex = 0, onLoadMore, hasMore, is
               {actualIndex === currentIndex && (
                 <iframe
                   className="absolute inset-0 w-full h-full"
-                  src={`https://www.youtube.com/embed/${short.id}?autoplay=1&rel=0&playsinline=1&loop=1&playlist=${short.id}&controls=0&mute=0&enablejsapi=1`}
+                  src={`https://www.youtube.com/embed/${short.id}?autoplay=1&rel=0&playsinline=1&loop=1&playlist=${short.id}&controls=0&mute=0&enablejsapi=1&modestbranding=1&iv_load_policy=3`}
                   title="Shorts Player"
                   frameBorder="0"
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
