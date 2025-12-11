@@ -76,7 +76,7 @@ export default function Watch() {
         <iframe
           ref={iframeRef}
           className="w-full h-full"
-          src={`https://www.youtube.com/embed/${id}?autoplay=1&rel=0&playsinline=1&enablejsapi=1`}
+          src={`https://www.youtube.com/embed/${id}?autoplay=1&rel=0&playsinline=1&enablejsapi=1&modestbranding=1&iv_load_policy=3&loop=1&playlist=${id}`}
           title="Video Player"
           frameBorder="0"
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
