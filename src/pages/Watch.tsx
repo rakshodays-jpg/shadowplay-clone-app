@@ -1,15 +1,16 @@
-import { useParams, Link } from 'react-router-dom';
-import { ChevronLeft, ThumbsUp, ThumbsDown, Share2, MoreHorizontal, Bell, Heart, Gauge, Clock } from 'lucide-react';
+import { useParams, Link, useNavigate } from 'react-router-dom';
+import { ChevronLeft, ThumbsUp, ThumbsDown, Share2, MoreHorizontal, Bell, Heart, Gauge, Clock, PictureInPicture2 } from 'lucide-react';
 import { VideoCard, VideoCardSkeleton } from '@/components/video/VideoCard';
 import { useState, useRef, useEffect } from 'react';
 import { useVideoDetails, useRelatedVideos } from '@/hooks/useYouTube';
 import { usePlaybackSettings, playbackSpeeds, sleepTimerOptions } from '@/hooks/usePlaybackSettings';
 import { useSavedVideos } from '@/hooks/useSavedVideos';
+import { useMiniPlayer } from '@/contexts/MiniPlayerContext';
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
-
 export default function Watch() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [showSpeedMenu, setShowSpeedMenu] = useState(false);
@@ -20,6 +21,7 @@ export default function Watch() {
   const { data: relatedVideos, isLoading: relatedLoading } = useRelatedVideos(id || '');
   const { speed, setSpeed, sleepTimer, setSleepTimer, timeRemaining } = usePlaybackSettings();
   const { isSaved, toggleSave } = useSavedVideos();
+  const { startMiniPlayer, closeMiniPlayer } = useMiniPlayer();
 
   const formattedDate = video?.publishedAt 
     ? formatDistanceToNow(new Date(video.publishedAt), { addSuffix: true })
@@ -66,6 +68,17 @@ export default function Watch() {
         viewCount: video.viewCount,
         publishedAt: video.publishedAt,
       });
+    }
+  };
+
+  const handlePiP = () => {
+    if (video && id) {
+      startMiniPlayer({
+        id,
+        title: video.title,
+        channelName: video.channelName,
+      });
+      navigate(-1);
     }
   };
 
@@ -196,6 +209,15 @@ export default function Watch() {
             <button className="flex items-center gap-2 px-4 py-2 bg-sp-chip rounded-full hover:bg-sp-hover transition-colors">
               <Share2 className="w-5 h-5 text-sp-icon" />
               <span className="text-sm font-medium text-foreground">Share</span>
+            </button>
+
+            {/* Picture-in-Picture */}
+            <button 
+              onClick={handlePiP}
+              className="flex items-center gap-2 px-4 py-2 bg-sp-chip rounded-full hover:bg-sp-hover transition-colors"
+            >
+              <PictureInPicture2 className="w-5 h-5 text-sp-icon" />
+              <span className="text-sm font-medium text-foreground">PiP</span>
             </button>
 
             {/* Playback Speed */}
