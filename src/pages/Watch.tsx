@@ -1,13 +1,14 @@
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ChevronLeft, ThumbsUp, ThumbsDown, Share2, MoreHorizontal, Bell, Heart, Gauge, Clock, PictureInPicture2 } from 'lucide-react';
+import { ChevronLeft, ThumbsUp, ThumbsDown, Share2, MoreHorizontal, Bell, Heart, Gauge, Clock, PictureInPicture2, Maximize } from 'lucide-react';
 import { VideoCard, VideoCardSkeleton } from '@/components/video/VideoCard';
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useVideoDetails, useRelatedVideos } from '@/hooks/useYouTube';
 import { usePlaybackSettings, playbackSpeeds, sleepTimerOptions } from '@/hooks/usePlaybackSettings';
 import { useSavedVideos } from '@/hooks/useSavedVideos';
 import { useMiniPlayer } from '@/contexts/MiniPlayerContext';
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
+
 export default function Watch() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -15,7 +16,9 @@ export default function Watch() {
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [showSpeedMenu, setShowSpeedMenu] = useState(false);
   const [showSleepMenu, setShowSleepMenu] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const playerContainerRef = useRef<HTMLDivElement>(null);
   
   const { data: video, isLoading: videoLoading } = useVideoDetails(id || '');
   const { data: relatedVideos, isLoading: relatedLoading } = useRelatedVideos(id || '');
@@ -57,6 +60,55 @@ export default function Watch() {
     return () => window.removeEventListener('shadowplay-sleep-timer-end', handleSleepEnd);
   }, []);
 
+  // Fullscreen change handler
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      const isNowFullscreen = !!document.fullscreenElement;
+      setIsFullscreen(isNowFullscreen);
+      
+      // Pause video when exiting fullscreen
+      if (!isNowFullscreen && iframeRef.current?.contentWindow) {
+        iframeRef.current.contentWindow.postMessage(JSON.stringify({
+          event: 'command',
+          func: 'pauseVideo',
+          args: []
+        }), '*');
+      }
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+    };
+  }, []);
+
+  // Toggle fullscreen
+  const toggleFullscreen = useCallback(async () => {
+    try {
+      if (!document.fullscreenElement) {
+        const element = playerContainerRef.current;
+        if (element) {
+          if (element.requestFullscreen) {
+            await element.requestFullscreen();
+          } else if ((element as any).webkitRequestFullscreen) {
+            await (element as any).webkitRequestFullscreen();
+          }
+        }
+      } else {
+        if (document.exitFullscreen) {
+          await document.exitFullscreen();
+        } else if ((document as any).webkitExitFullscreen) {
+          await (document as any).webkitExitFullscreen();
+        }
+      }
+    } catch (error) {
+      console.error('Fullscreen error:', error);
+    }
+  }, []);
+
   const handleSave = () => {
     if (video) {
       toggleSave({
@@ -85,27 +137,47 @@ export default function Watch() {
   return (
     <div className="min-h-screen bg-background pb-4">
       {/* Video Player */}
-      <div className="relative aspect-video bg-sp-overlay">
+      <div 
+        ref={playerContainerRef}
+        className={cn(
+          "relative bg-sp-overlay",
+          isFullscreen ? "w-screen h-screen" : "aspect-video"
+        )}
+      >
         <iframe
           ref={iframeRef}
           className="w-full h-full"
-          src={`https://www.youtube.com/embed/${id}?autoplay=1&rel=0&playsinline=1&enablejsapi=1&modestbranding=1&iv_load_policy=3&loop=1&playlist=${id}`}
+          src={`https://www.youtube.com/embed/${id}?autoplay=1&rel=0&playsinline=1&enablejsapi=1&modestbranding=1&iv_load_policy=3&loop=1&playlist=${id}&controls=1`}
           title="Video Player"
           frameBorder="0"
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen"
           allowFullScreen
         />
         
         {/* Back Button Overlay */}
         <Link
           to="/"
-          className="absolute top-4 left-4 p-2 rounded-full bg-sp-overlay/50 hover:bg-sp-overlay/70 transition-colors backdrop-blur-sm"
+          className={cn(
+            "absolute top-4 left-4 p-2 rounded-full bg-sp-overlay/50 hover:bg-sp-overlay/70 transition-colors backdrop-blur-sm",
+            isFullscreen && "hidden"
+          )}
         >
           <ChevronLeft className="w-6 h-6 text-foreground" />
         </Link>
 
+        {/* Fullscreen Button */}
+        <button
+          onClick={toggleFullscreen}
+          className="absolute bottom-4 right-4 p-2 rounded-full bg-sp-overlay/50 hover:bg-sp-overlay/70 transition-colors backdrop-blur-sm"
+        >
+          <Maximize className="w-5 h-5 text-foreground" />
+        </button>
+
         {/* Speed & Sleep Timer Indicator */}
-        <div className="absolute top-4 right-4 flex items-center gap-2">
+        <div className={cn(
+          "absolute top-4 right-4 flex items-center gap-2",
+          isFullscreen && "top-6 right-6"
+        )}>
           {speed !== 1 && (
             <div className="px-2 py-1 rounded-full bg-primary/80 backdrop-blur-sm text-xs font-medium text-primary-foreground">
               {speed}x
@@ -118,6 +190,13 @@ export default function Watch() {
             </div>
           )}
         </div>
+
+        {/* Exit Fullscreen Hint */}
+        {isFullscreen && (
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 px-4 py-2 rounded-full bg-sp-overlay/70 backdrop-blur-sm text-sm text-foreground animate-fade-in">
+            Press ESC or tap to exit
+          </div>
+        )}
       </div>
 
       {videoLoading ? (
