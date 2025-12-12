@@ -66,26 +66,53 @@ export default function Watch() {
       const isNowFullscreen = !!document.fullscreenElement;
       setIsFullscreen(isNowFullscreen);
       
-      // Pause video when exiting fullscreen
-      if (!isNowFullscreen && iframeRef.current?.contentWindow) {
-        iframeRef.current.contentWindow.postMessage(JSON.stringify({
-          event: 'command',
-          func: 'pauseVideo',
-          args: []
-        }), '*');
+      // Unlock orientation when exiting fullscreen
+      if (!isNowFullscreen) {
+        try {
+          if (screen.orientation && screen.orientation.unlock) {
+            screen.orientation.unlock();
+          }
+        } catch (error) {
+          // Ignore
+        }
       }
     };
 
     document.addEventListener('fullscreenchange', handleFullscreenChange);
     document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    document.addEventListener('MSFullscreenChange', handleFullscreenChange);
     
     return () => {
       document.removeEventListener('fullscreenchange', handleFullscreenChange);
       document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('MSFullscreenChange', handleFullscreenChange);
     };
   }, []);
 
-  // Toggle fullscreen
+  // Lock to landscape orientation
+  const lockLandscape = useCallback(async () => {
+    try {
+      if (screen.orientation && (screen.orientation as any).lock) {
+        await (screen.orientation as any).lock('landscape');
+      }
+    } catch (error) {
+      // Orientation lock not supported or failed
+      console.log('Orientation lock not supported');
+    }
+  }, []);
+
+  // Unlock orientation
+  const unlockOrientation = useCallback(() => {
+    try {
+      if (screen.orientation && screen.orientation.unlock) {
+        screen.orientation.unlock();
+      }
+    } catch (error) {
+      console.log('Orientation unlock not supported');
+    }
+  }, []);
+
+  // Toggle fullscreen with landscape orientation
   const toggleFullscreen = useCallback(async () => {
     try {
       if (!document.fullscreenElement) {
@@ -95,19 +122,27 @@ export default function Watch() {
             await element.requestFullscreen();
           } else if ((element as any).webkitRequestFullscreen) {
             await (element as any).webkitRequestFullscreen();
+          } else if ((element as any).msRequestFullscreen) {
+            await (element as any).msRequestFullscreen();
           }
+          // Lock to landscape after entering fullscreen
+          await lockLandscape();
         }
       } else {
+        // Unlock orientation before exiting fullscreen
+        unlockOrientation();
         if (document.exitFullscreen) {
           await document.exitFullscreen();
         } else if ((document as any).webkitExitFullscreen) {
           await (document as any).webkitExitFullscreen();
+        } else if ((document as any).msExitFullscreen) {
+          await (document as any).msExitFullscreen();
         }
       }
     } catch (error) {
       console.error('Fullscreen error:', error);
     }
-  }, []);
+  }, [lockLandscape, unlockOrientation]);
 
   const handleSave = () => {
     if (video) {
@@ -140,8 +175,10 @@ export default function Watch() {
       <div 
         ref={playerContainerRef}
         className={cn(
-          "relative bg-sp-overlay",
-          isFullscreen ? "w-screen h-screen" : "aspect-video"
+          "relative bg-black",
+          isFullscreen 
+            ? "fixed inset-0 w-screen h-screen z-50 flex items-center justify-center" 
+            : "aspect-video"
         )}
       >
         <iframe
