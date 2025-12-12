@@ -1,8 +1,10 @@
 import { X, Maximize2, Pause, Play } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useMiniPlayer } from '@/contexts/MiniPlayerContext';
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { cn } from '@/lib/utils';
+import { useMediaSession } from '@/hooks/useMediaSession';
+import { BackgroundAudioPlayer } from '@/components/audio/BackgroundAudioPlayer';
 
 export function MiniPlayer() {
   const { isActive, video, closeMiniPlayer } = useMiniPlayer();
@@ -26,6 +28,43 @@ export function MiniPlayer() {
       setPosition({ x: 16, y: window.innerHeight - 200 });
     }
   }, [isActive]);
+
+  // Media Session for background playback controls
+  const mediaSessionOptions = useMemo(() => {
+    if (!video || shouldHide) return null;
+    return {
+      title: video.title,
+      artist: video.channelName,
+      artwork: `https://i.ytimg.com/vi/${video.id}/hqdefault.jpg`,
+      onPlay: () => {
+        if (iframeRef.current?.contentWindow) {
+          iframeRef.current.contentWindow.postMessage(JSON.stringify({
+            event: 'command',
+            func: 'playVideo',
+            args: []
+          }), '*');
+          setIsPaused(false);
+        }
+      },
+      onPause: () => {
+        if (iframeRef.current?.contentWindow) {
+          iframeRef.current.contentWindow.postMessage(JSON.stringify({
+            event: 'command',
+            func: 'pauseVideo',
+            args: []
+          }), '*');
+          setIsPaused(true);
+        }
+      },
+    };
+  }, [video, shouldHide]);
+
+  const { setPlaybackState } = useMediaSession(mediaSessionOptions);
+
+  // Update playback state for media session
+  useEffect(() => {
+    setPlaybackState(isPaused ? 'paused' : 'playing');
+  }, [isPaused, setPlaybackState]);
 
   const handleExpand = () => {
     if (video) {
@@ -75,7 +114,11 @@ export function MiniPlayer() {
     setIsDragging(false);
   };
 
-  if (shouldHide) return null;
+  if (shouldHide) return (
+    <>
+      <BackgroundAudioPlayer videoId={null} isPlaying={false} />
+    </>
+  );
 
   return (
     <div
@@ -149,6 +192,9 @@ export function MiniPlayer() {
         {/* Bottom Info */}
         <p className="text-white text-xs line-clamp-1 font-medium">{video.title}</p>
       </div>
+
+      {/* Background Audio Player for maintaining audio session */}
+      <BackgroundAudioPlayer videoId={video.id} isPlaying={!isPaused} />
     </div>
   );
 }
